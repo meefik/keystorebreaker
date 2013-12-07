@@ -1,18 +1,16 @@
 package ru.meefik.keystorebreaker;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
+import java.io.*;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 
 public class Breaker extends Thread {
 
-	private ByteArrayInputStream buf;
-	// private char[] char_seq =
-	// "0123456789abcdefjhijklmnopqrstuvwxyz".toCharArray();
-	private char[] char_seq;
-	private int seq_len;
+    private static final int DIGEST_LENGTH = 20;
+
+    private final char[] char_seq;
+	private final int seq_len;
 	private int[] int_seq;
 	private int depth;
 	private char[] passphrase;
@@ -20,19 +18,31 @@ public class Breaker extends Thread {
 	private boolean alive = false;
 	public final char[] firstPwd;
 	public final char[] lastPwd;
+    private final byte[] keystore;
+    private final byte[] signature;
+    private final byte[] salt;
+    private final MessageDigest md;
 
-	public Breaker(String ksFile, char[] seq, char[] fPwd, char[] lPwd,
-			int threads) {
-		try {
-			File file = new File(ksFile);
-			FileInputStream fis = new FileInputStream(file);
-			byte[] fileBytes = new byte[(int) file.length()];
-			fis.read(fileBytes);
-			buf = new ByteArrayInputStream(fileBytes);
-			fis.close();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+    public Breaker(String ksFile, char[] seq, char[] fPwd, char[] lPwd, int threads) {
+
+        final File file = new File(ksFile);
+        this.keystore = new byte[(int) file.length() - DIGEST_LENGTH];
+        this.signature = new byte[DIGEST_LENGTH];
+
+        try {
+            this.md = MessageDigest.getInstance("SHA");
+            this.salt = "Mighty Aphrodite".getBytes("UTF8");
+            final DataInputStream stream = new DataInputStream(new FileInputStream(file));
+            stream.readFully(keystore);
+            stream.readFully(signature);
+            stream.close();
+        } catch (UnsupportedEncodingException e) {
+            throw new IllegalStateException("Unable to initialize salt: " + e.getMessage(), e);
+        } catch (IOException e) {
+            throw new IllegalStateException("Unable to initialize keystore data and signature: " + e.getMessage(), e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Unable to initialize MessageDigest: " + e.getMessage(), e);
+        }
 
 		// normalize
 		char[] nPwd = new char[lPwd.length];
@@ -103,28 +113,40 @@ public class Breaker extends Thread {
 	@Override
 	public void run() {
 		alive = true;
-		KeyStore ks = null;
-		try {
-			ks = KeyStore.getInstance(KeyStore.getDefaultType());
-		} catch (KeyStoreException e) {
-			e.printStackTrace();
-		}
-		while (alive) {
-			buf.reset();
-			try {
-				// System.out.println(getPwd());
-				if (!nextIntSeq())
-					break;
-				passphrase = getPwd();
-				// if (Arrays.equals(passphrase,lastPwd)) alive = false;
-				ks.load(buf, passphrase);
-				found = true;
-				alive = false;
-			} catch (Throwable t) {
-				continue;
-			}
-		}
-		alive = false;
+        while (alive) {
+            // System.out.println(getPwd());
+            if (!nextIntSeq())
+                break;
+            passphrase = getPwd();
+
+            final MessageDigest digest = getPreKeyedHash(passphrase);
+            digest.update(this.keystore);
+            final byte[] result = digest.digest();
+            if (!Arrays.equals(signature, result)) {
+                continue;
+            }
+
+            found = true;
+            alive = false;
+        }
+        alive = false;
 	}
+
+    /**
+     * Generate a new SHA message digest, based on the password
+     */
+    private MessageDigest getPreKeyedHash(char[] password) {
+        this.md.reset();
+        int i, j;
+
+        byte[] passwdBytes = new byte[password.length * 2];
+        for (i = 0, j = 0; i < password.length; i++) {
+            passwdBytes[j++] = (byte) (password[i] >> 8);
+            passwdBytes[j++] = (byte) password[i];
+        }
+        md.update(passwdBytes);
+        md.update(salt);
+        return md;
+    }
 
 }
