@@ -1,11 +1,11 @@
 KeystoreBreaker
 ===============
 
-KeystoreBreaker - password guessing to java keystore.
-
 Copyright (C) Anton Skshidlevsky
 
 Licensed under the [GPL version 3](http://www.gnu.org/licenses/) or later.
+
+Password guessing to java keystore.
 
 Usage:
 
