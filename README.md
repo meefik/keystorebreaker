@@ -3,13 +3,13 @@ KeystoreBreaker
 
 KeystoreBreaker - password guessing to java keystore.
 
-Copyright (C) 2012  Anton Skshidlevsky
+Copyright (C) Anton Skshidlevsky
 
 Licensed under the [GPL version 3](http://www.gnu.org/licenses/) or later.
 
 Usage:
 
-    java -jar KeystoreBreaker.jar <keystore file> <sequence> <first passwd> <last passwd> <number of threads>
+    $ java -jar KeystoreBreaker.jar <keystore file> <sequence> <first passwd> <last passwd> <number of threads>
 
 Example:
 
