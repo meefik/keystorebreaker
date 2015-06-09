@@ -5,3 +5,7 @@
 bin/
 gen/
 obj/
+/KeystoreBreaker/nbproject/private/
+/nbproject/private/
+/dist/
+/build/
