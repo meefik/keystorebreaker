@@ -29,7 +29,9 @@ public class Breaker extends Thread {
         this.keystore = new byte[(int) file.length() - DIGEST_LENGTH];
         this.signature = new byte[DIGEST_LENGTH];
 
-        try (DataInputStream stream = new DataInputStream(new FileInputStream(file))) {
+        DataInputStream stream = null;
+        try {
+            stream = new DataInputStream(new FileInputStream(file));
             this.md = MessageDigest.getInstance("SHA");
             this.salt = "Mighty Aphrodite".getBytes("UTF8");
             stream.readFully(keystore);
@@ -40,16 +42,21 @@ public class Breaker extends Thread {
             throw new IllegalStateException("Unable to initialize keystore data and signature: " + e.getMessage(), e);
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("Unable to initialize MessageDigest: " + e.getMessage(), e);
+        } finally {
+            if (stream != null) {
+                try {
+                    stream.close();
+                } catch (IOException ex) {
+                    // ignore
+                }
+            }
         }
 
         // normalize
         char[] nPwd = new char[lPwd.length];
         for (int i = 0; i < lPwd.length; i++) {
-            if (i < fPwd.length) {
-                nPwd[i] = fPwd[i];
-            } else {
-                nPwd[i] = seq[0];
-            }
+            if (i < fPwd.length) nPwd[i] = fPwd[i];
+            else nPwd[i] = seq[0];
         }
 
         this.firstPwd = nPwd;
